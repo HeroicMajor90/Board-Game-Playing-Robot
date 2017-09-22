@@ -17,7 +17,7 @@ q1 =0; q2 =0; q3 =0; q4 =0; %initialise q states
 qa = [q1,q2,q3,q4];
 uARM.plot(qa);
 hold on;
-goalXYZ = [16,5,6];
+goalXYZ = [18,10,7];
 moveTo(goalXYZ,eStop,qa);
 uARM.plot(qMatrix);hold on;
 uARM.teach
@@ -36,22 +36,22 @@ function moveTo(goalXYZ,eStop,qa)
 iseStop(eStop);  %check for safety
 steps = 15;
 %get angles
-goalPoint = transl(goalXYZ);
+goalPoint = transl(goalXYZ)
 
-qNow = uARM.ikcon(uARM.fkine(qa)); %current joint angles
-qValues = uARM.ikcon(uARM.fkine(goalPoint)); %goal joint values
+qNow = uARM.ikcon(uARM.fkine(qa)) %current joint angles
+qValues = uARM.ikcon(uARM.fkine(goalPoint)) %goal joint values
 %get values for each link joint
 %qL1 = %rotation of arm about the base
-qL1 = qValues(1,1);
+qL1 = qValues(1,1)
 %qL2 = %rotation of side arm 
-qL2 = qValues(1,2);
+qL2 = qValues(1,2)
 %qL3 = %rotation of top arm function of other arms
-qL3 = (240+qL2)+239.7; %angle of L2, plus angles of 5 sided shape
+qL3 = 540-((210+radtodeg(qL2))+239.7) %angle of L2, plus angles of 5 sided shape
 %qL4 = %rotation of end effector with 30.3 degree ofset so that it points normal to ground function of other arms
-qL4 = (240+qL2)+qL3+180; %similar as qL3 made to put end effector at normal to ground
+qL4 = -(radtodeg(qL2)+qL3) %effector at normal to ground, undo rotations of other arms
 %Actual move part
-qGoal = [qL1,qL2,qL3,qL4];
-qMatrix = jtraj(qNow,qGoal,steps);
+qGoal = [qL1,qL2,degtorad(qL3),degtorad(qL4)]
+qMatrix = jtraj(qNow,qGoal,steps)
 
 end
 function moveIncrement()
