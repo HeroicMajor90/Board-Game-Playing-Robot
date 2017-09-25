@@ -3,7 +3,7 @@ clf;
 clear all;
 clc
 goalXYZ= zeros(3,1);
-eStop =0; 
+eStop =zeros(1,8); 
 %%%%%%%%%  Initialise myR1 robot
 L1 = Link('d',0,'a',2,'alpha',3*pi/2,'offset',0,'qlim', [-pi/2,pi/2]);
 L2 = Link('d',0,'a',15,'alpha',0,'offset',-pi/1.5,'qlim', [(-1/3*pi),(1/3*pi)]);
@@ -28,7 +28,8 @@ uARM.teach
 %End effector is 30.3 degrees clockwise from L4 position so that it is
 %normal to the xy = 0 plane
 function iseStop(eStop)
- while eStop ~= 0
+stopped = any(eStop);
+ while stopped ~= 0
     pause(2.0);
  end
 end
