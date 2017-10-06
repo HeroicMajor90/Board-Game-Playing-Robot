@@ -42,7 +42,7 @@ hold on;
 % plot3(squareL2(1,4),squareL2(2,4),squareL2(3,4),'go'); hold on;
 % plot3(squareL3(1,4),squareL3(2,4),squareL3(3,4),'go'); hold on;
 % plot3(squareL4(1,4),squareL4(2,4),squareL4(3,4),'go'); hold on;
-goalXYZ = [12,0,10];
+goalXYZ = [5,15,5];
 moveTo(goalXYZ,eStop,qa);
 uARM.teach
 
@@ -115,11 +115,9 @@ while steps >= 1
     uARM.plot(qMatrix((16-steps),:));
     %plot end effector with arm
     pos = uARM.fkine(eMatrix((16-steps),:));
-    if angleTotal >= 0
-        EndEffectorPose =transl(pos(1,4),pos(2,4),pos(3,4));
-    else
-        EndEffectorPose = transl(pos(1,4),pos(2,4),pos(3,4));
-    end
+    qCurrent= uARM.getpos();
+    eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+    EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
     updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
     EndEffector_h.Vertices = updatedPoints(:,1:3);
     steps = steps - 1;
