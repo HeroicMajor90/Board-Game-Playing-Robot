@@ -3,7 +3,7 @@ clf;
 clear all;
 clc
 goalXYZ= zeros(3,1);
-eStop =zeros(1,8);
+eStop =zeros(1,8); %1 estop button, 2 microswitch,  3 reed switch,  4 empty for lightgate,  5 empty,    6 empty,    7 empty,    8 collisions
 %%%%%%%%%  Initialise myR1 robot
 L1 = Link('d',0,'a',2,'alpha',-pi/2,'offset',0,'qlim', [-pi/2,pi/2]);
 L2 = Link('d',0,'a',15,'alpha',0,'offset',-pi/1.5,'qlim', [(-1/3*pi),(1/3*pi)]);
