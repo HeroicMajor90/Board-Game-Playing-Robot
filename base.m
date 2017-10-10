@@ -16,7 +16,10 @@ uARM.base
 uARM.base = transl(0, 0, 0) ;%Base position uARM
 q1 =0; q2 =0; q3 =0; q4 =0; %initialise q states
 qa = [q1,q2,q3,q4];
-positionPart = zeros (10, 10);
+
+%initialise arduino
+a = arduino();
+
 %initialise end effector
 [f,v,data] = read_ply('EndEffector.ply','tri');
 EndEffectorVertexCount = size(v,1);
@@ -26,42 +29,142 @@ vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 EndEffector_h = trisurf(f,EndEffectorVerts(:,1)+10.5,EndEffectorVerts(:,2)+0, EndEffectorVerts(:,3)+13 ,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
 
-%create bounding boxes
-%Base
-boxSize= 4; %size of bounding boxes in collision detection. Creates square with sides twice as long as boxSize
-%baseSquare= [uARM.base(1,4)-R,uARM.base(2,4)-R; uARM.base(1,4)-R,uARM.base(2,4)+R;uARM.base(1,4)+R,uARM.base(2,4)+R;uARM.base(1,4)-R,uARM.base(2,4)-R;]
-%baseInnerSquare = [uARM.base(1,4)-(R/2),uARM.base(2,4)-(R/2); uARM.base(1,4)-(R/2),uARM.base(2,4)+(R/2);uARM.base(1,4)+(R/2),uARM.base(2,4)+(R/2);uARM.base(1,4)-(R/2),uARM.base(2,4)-(R/2);]
-squareL1 = uARM.base ;%gives location of sqaure start points will need to move into collision detect function
-squareL2 = uARM.A([1], qa);
-squareL3 = uARM.A([1,2], qa);
-squareL4 = uARM.A([1,2,3], qa);
-squareEndE = uARM.fkine(qa);
+
+%program commands
 uARM.plot(qa);
 hold on;
-% plot3(squareL1(1,4),squareL1(2,4),squareL1(3,4),'go'); hold on;
-% plot3(squareL2(1,4),squareL2(2,4),squareL2(3,4),'go'); hold on;
-% plot3(squareL3(1,4),squareL3(2,4),squareL3(3,4),'go'); hold on;
-% plot3(squareL4(1,4),squareL4(2,4),squareL4(3,4),'go'); hold on;
 goalXYZ = [5,15,5];
 moveTo(goalXYZ,eStop);
-uARM.teach
-
+incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
 
 
     function iseStop(eStop)
+        %tests for estop conditions
+        buttonEstop = readDigitalPin(a,'D4');
+        pause(1/100);           %allow time for pin to be read
+        if buttonEstop < 1 
+            eStop(1,1) = 1;
+        end
         stopped = any(eStop);
         while stopped ~= 0
             display('stopped')
+            eStop
             pause(2.0);
+            buttonEstop = readDigitalPin(a,'D4');
+            pause(1/100);           %allow time for pin to be read 10ms
+            if buttonEstop > 0      %check for button to be manually reset
+                eStop(1,1) = 0;
+                stopped = any(eStop);
+            end
         end
     end
 
 
 
-
+    function incrementMove(XYZ)  %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
+        increment = 2;
+        switch(XYZ)
+            case 0 %move +1 increment in X
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,1) = offsetEE(1,1)+increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+            case 1 %move -1 increment in X
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,1) = offsetEE(1,1)-increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+            case 2 %move +1 increment in Y
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,2) = offsetEE(1,2)+increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+            case 3 %move -1 increment in Y
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,2) = offsetEE(1,2)-increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+            case 4 %move +1 increment in Z
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,3) = offsetEE(1,3)+increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+            case 5 %move -1 increment in Z
+                %get current end effector position
+                qa = uARM.getpos();
+                L4Position = uARM.fkine(qa);
+                
+                angleCurrent =radtodeg(atan((L4Position(2,4)/L4Position(1,4))));
+                
+                if angleCurrent >=1
+                    offsetEE = [(L4Position(1,4)+(3.5*sin(abs(angleCurrent)))),(L4Position(2,4)+(3.5*cos((angleCurrent)))),(L4Position(3,4)-6)];
+                else
+                    offsetEE = [(L4Position(1,4)+(3.5*cos(abs(angleCurrent)))),(L4Position(2,4)+(3.5*sin((angleCurrent)))), (L4Position(3,4)-6)];
+                end
+                %offsetEE is now the actual end of the robot
+                offsetEE(1,3) = offsetEE(1,3)-increment; %add the increment
+                goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
+                moveTo(goalXYZ,eStop);
+        end
+    end
 
     function moveTo(goalXYZ,eStop)
-        iseStop(eStop);  %check for safety
+        iseStop(eStop); %check for safety
         %create bounding boxes
         %create square radius size R
         Z1= 4;Z2 = 3;Z3 = 17;Z4 = 18;Z5 = 8;
@@ -74,6 +177,7 @@ uARM.teach
         boxesB = boxUpdate(boxesB);
         %check bounding boxes
         isCollision(boxesB);
+        
         steps = 15;
         %get angles
         qa= uARM.getpos();
@@ -182,9 +286,9 @@ uARM.teach
     end
 
     function isCollision(boxesB)
-        QUERYPOINTX = 0; 
-        QUERYPOINTY = 0;
-        QUERYPOINTZ = 0;
+        QUERYPOINTX = -50;
+        QUERYPOINTY = -50;
+        QUERYPOINTZ = -50;
         plot3(QUERYPOINTX,QUERYPOINTY,QUERYPOINTZ,'go'); hold on;
         %arbitrary values for now
         %test each axis against collisions with inpolygon()
@@ -231,24 +335,24 @@ uARM.teach
         %is collision.
         %A box collision test
         if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvAX,yvAX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvAY,yvAY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvAZ,yvAZ));
-             eStop(1,8) = 1;
+            eStop(1,8) = 1;
         end
         %B box collision test
         if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvBX,yvBX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvBY,yvBY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvBZ,yvBZ));
-             eStop(1,8) = 1;
+            eStop(1,8) = 1;
         end
         %C box collision test
         if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvCX,yvCX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvCY,yvCY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvCZ,yvCZ));
-             eStop(1,8) = 1;
+            eStop(1,8) = 1;
         end
         %D box collision test
         if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvDX,yvDX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvDY,yvDY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvDZ,yvDZ));
-             eStop(1,8) = 1;
+            eStop(1,8) = 1;
         end
         %E box collision test
         if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvEX,yvEX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvEY,yvEY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvEZ,yvEZ));
-             eStop(1,8) = 1;
+            eStop(1,8) = 1;
         end
         iseStop(eStop);
     end
-end
+    end
