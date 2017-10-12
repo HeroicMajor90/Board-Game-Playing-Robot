@@ -6,7 +6,7 @@ goalXYZ= zeros(3,1);
 eStop =zeros(1,8); %1 estop button, 2 microswitch,  3 reed switch,  4 empty for lightgate,  5 empty,    6 empty,    7 empty,    8 collisions
 %%%%%%%%%  Initialise myR1 robot
 L1 = Link('d',0,'a',2,'alpha',-pi/2,'offset',0,'qlim', [-pi/2,pi/2]);
-L2 = Link('d',0,'a',15,'alpha',0,'offset',-pi/1.5,'qlim', [(-1/3*pi),(1/3*pi)]);
+L2 = Link('d',0,'a',15,'alpha',0,'offset',-pi/1.5,'qlim', [(-1.5/3*pi),(1.5/3*pi)]);
 L3 = Link('d',0,'a',16,'alpha',0,'offset',+pi/1.5,'qlim', [-pi/3,(2/3*pi)]);
 L4 = Link('d',0,'a',0,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi]);
 
@@ -19,7 +19,8 @@ qa = [q1,q2,q3,q4];
 
 %initialise arduino
 a = arduino();
-
+gamestate = -1;
+progress = 0; %number of pieces that have been placed
 %initialise end effector
 [f,v,data] = read_ply('EndEffector.ply','tri');
 EndEffectorVertexCount = size(v,1);
@@ -28,14 +29,54 @@ EndEffectorVerts = v - repmat(midPointEndEffector,EndEffectorVertexCount,1);
 vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 EndEffector_h = trisurf(f,EndEffectorVerts(:,1)+10.5,EndEffectorVerts(:,2)+0, EndEffectorVerts(:,3)+13 ,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
+%initialise game board 
+%center position (20,0) Top right (25,-5) bottom left (15,5)
+[f,v,data] = read_ply('board.ply','tri');
+boardVertexCount = size(v,1);
+midPointboard = sum(v)/boardVertexCount;
+boardVerts = v - repmat(midPointboard,boardVertexCount,1);
+vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+board_h = trisurf(f,boardVerts(:,1)+20,boardVerts(:,2), boardVerts(:,3),'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+hold on;
+%initialise tokens player 1 tokens stored in stack at (20,+12)
+%stack top at height 5 width of 1
+[f,v,data] = read_ply('token.ply','tri');
+tokenVertexCount = size(v,1);
+midPointtoken = sum(v)/tokenVertexCount;
+tokenVerts = v - repmat(midPointtoken,tokenVertexCount,1);
+vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 
+tokenA_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+0,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+tokenB_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+1,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+tokenC_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+2,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+tokenD_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+3,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+tokenE_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+4,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 
+%initialise tokens player 2 tokens stored in stack at (20,-12) 
+%stack top at height 5 width of 1
+[f,v,data] = read_ply('token2.ply','tri');
+token2VertexCount = size(v,1);
+midPointtoken2 = sum(v)/token2VertexCount;
+token2Verts = v - repmat(midPointtoken2,token2VertexCount,1);
+vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+
+token2A_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+0,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+token2B_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+1,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+token2C_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+2,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+token2D_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+3,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+token2E_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+4,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 %program commands
 uARM.plot(qa);
 hold on;
-goalXYZ = [5,15,5];
+
+goalXYZ = [20,12,5];
 moveTo(goalXYZ,eStop);
-incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
+gamestate = 0;
+goalXYZ = [20,0,1];
+moveTo(goalXYZ,eStop);
+uARM.teach
+%incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
+
 
 
     function iseStop(eStop)
@@ -184,41 +225,41 @@ incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
         endEffector = uARM.fkine(qa);
         qNow = uARM.getpos(); %current joint angles
         %required L1 rotation to get end effector pose
-        angleGoal = radtodeg(atan((goalXYZ(1,2)/goalXYZ(1,1))));
-        angleCurrent =radtodeg(atan((endEffector(2,4)/endEffector(1,4))));
-        angleTotal = angleGoal + angleCurrent;
-        
+        angleGoal = radtodeg(atan((goalXYZ(1,2)/goalXYZ(1,1))))
+        angleCurrent =radtodeg(atan((endEffector(2,4)/endEffector(1,4))))
+        angleTotal = angleGoal %+ angleCurrent
+        eNow = transl([(endEffector(1,4)-(3.5*cos(degtorad(angleTotal)))),(endEffector(2,4)-(3.5*sin(degtorad(angleTotal)))),5]);
         reach = (abs(goalXYZ(1,1))+abs(goalXYZ(1,2))); %of arm gives the amount of reach needed which then determines the
         %angle of L3 with regards to the height required.
         if reach > 30
-            disp('Out of range')
+            disp('Out of range Far')
         end
         if reach < 10
-            disp('Out of range')
+            disp('Out of range Near')
         end
         if goalXYZ(1,3) > 19
-            disp('Out of range')
+            disp('Out of range Height')
         end
         if goalXYZ(1,3) < 0
-            disp('Out of range')
+            disp('Out of range Depth')
         end
         
         %end effector wanted orientation (L3 orientation)
-        arg = rotz(angleTotal);%*rotx(16.3-((reach/33)*(goalXYZ(1,3)/25)*16.3)) %(16.3/((goalXYZ(1,3)/6.5)*(reach/10.5)))
+        arg = rotz(angleTotal);
         %now goalXYZ offset to account for L4 and end effector
-        if angleTotal >=1
-            offsetEE = [(goalXYZ(1,1)-(3.5*sin(abs(angleTotal)))),(goalXYZ(1,2)-(3.5*cos((angleTotal)))),(goalXYZ(1,3)+6)];
-        else
-            offsetEE = [(goalXYZ(1,1)-(3.5*cos(abs(angleTotal)))),(goalXYZ(1,2)-(3.5*sin((angleTotal)))), (goalXYZ(1,3)+6)];
-        end
+        %if angleTotal >=1
+            offsetEE = [(goalXYZ(1,1)-(3.5*cos(degtorad(angleTotal)))),(goalXYZ(1,2)-(3.5*sin(degtorad(angleTotal)))),(goalXYZ(1,3)+6)]
+        %else
+         %   offsetEE = [(goalXYZ(1,1)-(3.5*cos(abs(angleTotal)))),(goalXYZ(1,2)+(3.5*sin(abs(angleTotal)))), (goalXYZ(1,3)+6)];
+        %end
         %change goalXYZ to offsetEE when end effector is modeled in
-        eEPoint = [arg(1,1),arg(1,2),arg(1,3),offsetEE(1,1); arg(2,1),arg(2,2),arg(2,3),offsetEE(1,2); arg(3,1),arg(3,2),arg(3,3),offsetEE(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);];
-        goalPoint = [arg(1,1),arg(1,2),arg(1,3),goalXYZ(1,1); arg(2,1),arg(2,2),arg(2,3),goalXYZ(1,2); arg(3,1),arg(3,2),arg(3,3),goalXYZ(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);];
+        eEPoint = [arg(1,1),arg(1,2),arg(1,3),offsetEE(1,1); arg(2,1),arg(2,2),arg(2,3),offsetEE(1,2); arg(3,1),arg(3,2),arg(3,3),offsetEE(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);]
+        goalPoint = [arg(1,1),arg(1,2),arg(1,3),goalXYZ(1,1); arg(2,1),arg(2,2),arg(2,3),goalXYZ(1,2); arg(3,1),arg(3,2),arg(3,3),goalXYZ(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);]
         
         qValues = uARM.ikcon(goalPoint); %goal joint values
-        qValues = uARM.ikcon(eEPoint);  %hopefully same as goalPoint just offset to account for end effector
-        qMatrix = jtraj(qNow,qValues,steps);
-        eMatrix = jtraj(qNow,qValues,steps);
+        eValues = uARM.ikcon(eEPoint);  %hopefully same as goalPoint just offset to account for end effector
+        qMatrix = jtraj(qNow,eValues,steps);
+        eMatrix = ctraj(eNow,uARM.fkine(qValues),steps);
         while steps >= 1
             
             qCurrent= uARM.getpos();
@@ -227,13 +268,55 @@ incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
             isCollision(boxesB);
             iseStop(eStop);
             %plot end effector with arm
-            pos = uARM.fkine(eMatrix((16-steps),:));
-            
+            pos = uARM.fkine(qMatrix((16-steps),:));
+            epos = eMatrix(:,:,16-steps)
             eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
             EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
             updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
             EndEffector_h.Vertices = updatedPoints(:,1:3);
             uARM.plot(qMatrix((16-steps),:));
+            switch (gamestate)       %moving tokens with arm needs end effector position
+                case 0
+                    tokenEPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [tokenEPose * [tokenVerts,ones(tokenVertexCount,1)]']';
+                    tokenE_h.Vertices = updatedPoints(:,1:3);
+                case 1
+                    tokenDPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [tokenDPose * [tokenDVerts,ones(tokenDVertexCount,1)]']';
+                    tokenD_h.Vertices = updatedPoints(:,1:3);
+                case 2
+                    tokenCPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [tokenCPose * [tokenCVerts,ones(tokenCVertexCount,1)]']';
+                    tokenC_h.Vertices = updatedPoints(:,1:3);
+                case 3
+                    tokenBPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [tokenBPose * [tokenBVerts,ones(tokenBVertexCount,1)]']';
+                    tokenB_h.Vertices = updatedPoints(:,1:3);
+                case 4
+                    tokenAPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [tokenAPose * [tokenAVerts,ones(tokenAVertexCount,1)]']';
+                    tokenA_h.Vertices = updatedPoints(:,1:3);
+                case 5
+                    token2EPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [token2EPose * [token2EVerts,ones(token2EVertexCount,1)]']';
+                    token2E_h.Vertices = updatedPoints(:,1:3);
+                case 6
+                    token2DPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [token2DPose * [token2DVerts,ones(token2DVertexCount,1)]']';
+                    token2D_h.Vertices = updatedPoints(:,1:3);
+                case 7
+                    token2CPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [token2CPose * [token2CVerts,ones(token2CVertexCount,1)]']';
+                    token2C_h.Vertices = updatedPoints(:,1:3);
+                case 8
+                    token2BPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [token2BPose * [token2BVerts,ones(token2BVertexCount,1)]']';
+                    token2B_h.Vertices = updatedPoints(:,1:3);
+                case 9
+                    token2APose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
+                    updatedPoints = [token2APose * [token2AVerts,ones(token2AVertexCount,1)]']';
+                    token2A_h.Vertices = updatedPoints(:,1:3);
+            end
             steps = steps - 1;
         end
         hold on;
