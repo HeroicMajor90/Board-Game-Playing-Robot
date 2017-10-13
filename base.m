@@ -21,6 +21,7 @@ qa = [q1,q2,q3,q4];
 a = arduino();
 gamestate = -1;
 progress = 0; %number of pieces that have been placed
+collisionPoint = [-50,-50,-50;];
 %initialise end effector
 [f,v,data] = read_ply('EndEffector.ply','tri');
 EndEffectorVertexCount = size(v,1);
@@ -37,6 +38,14 @@ midPointboard = sum(v)/boardVertexCount;
 boardVerts = v - repmat(midPointboard,boardVertexCount,1);
 vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 board_h = trisurf(f,boardVerts(:,1)+20,boardVerts(:,2), boardVerts(:,3),'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+hold on;
+%initialise enclosure
+[f,v,data] = read_ply('enclosure.ply','tri');
+enclosureVertexCount = size(v,1);
+midPointenclosure = sum(v)/enclosureVertexCount;
+enclosureVerts = v - repmat(midPointenclosure,enclosureVertexCount,1);
+vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+enclosure_h = trisurf(f,enclosureVerts(:,1)+30,enclosureVerts(:,2), enclosureVerts(:,3)+20,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
 %initialise tokens player 1 tokens stored in stack at (20,+12)
 %stack top at height 5 width of 1
@@ -68,40 +77,150 @@ token2E_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+
 %program commands
 uARM.plot(qa);
 hold on;
+% TURN 1
+%  goalXYZ = [20,12,5];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 0;%advance gamestate for black
+% goalXYZ = [15,5,1]; %move token here
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1; %null gamestate to stop carrying token
+%  goalXYZ = [20,-12,5];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 5;%advance gamestate for white
+%  goalXYZ = [20,0,1];
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
+%  %TURN 2
+%   goalXYZ = [20,12,4];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 1;%advance gamestate for black
+% goalXYZ = [25,-5,1];
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
+%  goalXYZ = [20,-12,4];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 6;%advance gamestate for white
+%  goalXYZ = [25,5,1];
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
+%  %TURN 3
+%    goalXYZ = [20,12,3];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 2;%advance gamestate for black
+% goalXYZ = [15,-5,1];
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
+%  goalXYZ = [20,-12,3];%stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 7; %advance gamestate for white
+%  goalXYZ = [20,-5,1];
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
+%  %TURN 4
+%     goalXYZ = [20,12,2]; %stack position height minus 1
+%  moveTo(goalXYZ,eStop);
+%  gamestate = 3; %advance gamestate for black
+% goalXYZ = [15,0,1];  
+%  moveTo(goalXYZ,eStop);
+%  gamestate = -1;%null gamestate to stop carrying token
 
-goalXYZ = [20,12,5];
-moveTo(goalXYZ,eStop);
-gamestate = 0;
-goalXYZ = [20,0,1];
-moveTo(goalXYZ,eStop);
-uARM.teach
 %incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
 
 
 
     function iseStop(eStop)
         %tests for estop conditions
-        buttonEstop = readDigitalPin(a,'D4');
+         buttonEstop = readDigitalPin(a,'D4');
         pause(1/100);           %allow time for pin to be read
-        if buttonEstop < 1 
-            eStop(1,1) = 1;
+         if buttonEstop < 1 
+        eStop(1,1) = 1;
         end
         stopped = any(eStop);
         while stopped ~= 0
             display('stopped')
             eStop
             pause(2.0);
-            buttonEstop = readDigitalPin(a,'D4');
-            pause(1/100);           %allow time for pin to be read 10ms
-            if buttonEstop > 0      %check for button to be manually reset
-                eStop(1,1) = 0;
+             buttonEstop = readDigitalPin(a,'D4');
+             pause(1/100);           %allow time for pin to be read 10ms
+             if buttonEstop > 0      %check for button to be manually reset
+                 eStop(1,1) = 0;
                 stopped = any(eStop);
-            end
+             end
         end
     end
 
-
-
+    function incrementQ(QGUI)
+        qa = uARM.getpos(); %get current positions of arm
+        incrementQ = degtorad(4);
+        switch(QGUI)%case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
+            case 0 %x+
+                qCurrent = qa;
+                qa(1,1) = qa(1,1)+incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            case 1 %x-
+                qCurrent = qa;
+                qa(1,1) = qa(1,1)-incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            case 2 %y+
+                qCurrent = qa;
+                qa(1,2) = qa(1,2)+incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            case 3  %y-
+                qCurrent = qa;
+                qa(1,2) = qa(1,2)-incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            case 4  %z+
+                qCurrent = qa;
+                qa(1,3) = qa(1,3)+incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            case 5  %z-
+                qCurrent = qa;
+                qa(1,3) = qa(1,3)-incrementQ; %correctly gets required joint angles
+                %plot end effector with arm
+                pos = uARM.fkine(qa);
+                
+                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
+                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
+                EndEffector_h.Vertices = updatedPoints(:,1:3);
+                uARM.plot(qa);
+            end
+    end
     function incrementMove(XYZ)  %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
         increment = 2;
         switch(XYZ)
@@ -217,7 +336,7 @@ uARM.teach
         %height Z
         boxesB = boxUpdate(boxesB);
         %check bounding boxes
-        isCollision(boxesB);
+        isCollision(boxesB,collisionPoint);
         
         steps = 15;
         %get angles
@@ -265,11 +384,11 @@ uARM.teach
             qCurrent= uARM.getpos();
             %create and move bounding boxes
             boxUpdate(boxesB);
-            isCollision(boxesB);
+            isCollision(boxesB,collisionPoint);
             iseStop(eStop);
             %plot end effector with arm
             pos = uARM.fkine(qMatrix((16-steps),:));
-            epos = eMatrix(:,:,16-steps)
+            epos = eMatrix(:,:,16-steps);
             eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
             EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
             updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
@@ -282,39 +401,39 @@ uARM.teach
                     tokenE_h.Vertices = updatedPoints(:,1:3);
                 case 1
                     tokenDPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [tokenDPose * [tokenDVerts,ones(tokenDVertexCount,1)]']';
+                    updatedPoints = [tokenDPose * [tokenVerts,ones(tokenVertexCount,1)]']';
                     tokenD_h.Vertices = updatedPoints(:,1:3);
                 case 2
                     tokenCPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [tokenCPose * [tokenCVerts,ones(tokenCVertexCount,1)]']';
+                    updatedPoints = [tokenCPose * [tokenVerts,ones(tokenVertexCount,1)]']';
                     tokenC_h.Vertices = updatedPoints(:,1:3);
                 case 3
                     tokenBPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [tokenBPose * [tokenBVerts,ones(tokenBVertexCount,1)]']';
+                    updatedPoints = [tokenBPose * [tokenVerts,ones(tokenVertexCount,1)]']';
                     tokenB_h.Vertices = updatedPoints(:,1:3);
                 case 4
                     tokenAPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [tokenAPose * [tokenAVerts,ones(tokenAVertexCount,1)]']';
+                    updatedPoints = [tokenAPose * [tokenVerts,ones(tokenVertexCount,1)]']';
                     tokenA_h.Vertices = updatedPoints(:,1:3);
                 case 5
                     token2EPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [token2EPose * [token2EVerts,ones(token2EVertexCount,1)]']';
+                    updatedPoints = [token2EPose * [token2Verts,ones(token2VertexCount,1)]']';
                     token2E_h.Vertices = updatedPoints(:,1:3);
                 case 6
                     token2DPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [token2DPose * [token2DVerts,ones(token2DVertexCount,1)]']';
+                    updatedPoints = [token2DPose * [token2Verts,ones(token2VertexCount,1)]']';
                     token2D_h.Vertices = updatedPoints(:,1:3);
                 case 7
                     token2CPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [token2CPose * [token2CVerts,ones(token2CVertexCount,1)]']';
+                    updatedPoints = [token2CPose * [token2Verts,ones(token2VertexCount,1)]']';
                     token2C_h.Vertices = updatedPoints(:,1:3);
                 case 8
                     token2BPose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [token2BPose * [token2BVerts,ones(token2BVertexCount,1)]']';
+                    updatedPoints = [token2BPose * [token2Verts,ones(token2VertexCount,1)]']';
                     token2B_h.Vertices = updatedPoints(:,1:3);
                 case 9
                     token2APose = [eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4)+(3.5*cos((atan((pos(2,4)/pos(1,4))))));eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4)+(3.5*sin((atan((pos(2,4)/pos(1,4))))));eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4)-6.5;0,0,0,1;];
-                    updatedPoints = [token2APose * [token2AVerts,ones(token2AVertexCount,1)]']';
+                    updatedPoints = [token2APose * [token2Verts,ones(token2VertexCount,1)]']';
                     token2A_h.Vertices = updatedPoints(:,1:3);
             end
             steps = steps - 1;
@@ -368,11 +487,10 @@ uARM.teach
         boxesB = [aBox,bBox,cBox,dBox,eBox,];
     end
 
-    function isCollision(boxesB)
-        QUERYPOINTX = -50;
-        QUERYPOINTY = -50;
-        QUERYPOINTZ = -50;
-        plot3(QUERYPOINTX,QUERYPOINTY,QUERYPOINTZ,'go'); hold on;
+    function isCollision(boxesB,collisionPoint)
+        
+        
+        plot3(collisionPoint(1,1),collisionPoint(1,2),collisionPoint(1,3),'go'); hold on;
         %arbitrary values for now
         %test each axis against collisions with inpolygon()
         %[in] = inpolygon(xq,yq,xv,yv) v = bounding box q = point query
@@ -417,23 +535,23 @@ uARM.teach
         %bounding box. If the point overlaps in all three planes then there
         %is collision.
         %A box collision test
-        if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvAX,yvAX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvAY,yvAY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvAZ,yvAZ));
+        if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvAX,yvAX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvAY,yvAY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvAZ,yvAZ));
             eStop(1,8) = 1;
         end
         %B box collision test
-        if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvBX,yvBX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvBY,yvBY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvBZ,yvBZ));
+        if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvBX,yvBX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvBY,yvBY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvBZ,yvBZ));
             eStop(1,8) = 1;
         end
         %C box collision test
-        if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvCX,yvCX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvCY,yvCY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvCZ,yvCZ));
+        if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvCX,yvCX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvCY,yvCY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvCZ,yvCZ));
             eStop(1,8) = 1;
         end
         %D box collision test
-        if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvDX,yvDX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvDY,yvDY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvDZ,yvDZ));
+        if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvDX,yvDX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvDY,yvDY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvDZ,yvDZ));
             eStop(1,8) = 1;
         end
         %E box collision test
-        if (inpolygon(QUERYPOINTX,QUERYPOINTY,xvEX,yvEX)&&inpolygon(QUERYPOINTY,QUERYPOINTZ,xvEY,yvEY)&&inpolygon(QUERYPOINTX,QUERYPOINTZ,xvEZ,yvEZ));
+        if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvEX,yvEX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvEY,yvEY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvEZ,yvEZ));
             eStop(1,8) = 1;
         end
         iseStop(eStop);
