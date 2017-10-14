@@ -30,7 +30,7 @@ EndEffectorVerts = v - repmat(midPointEndEffector,EndEffectorVertexCount,1);
 vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 EndEffector_h = trisurf(f,EndEffectorVerts(:,1)+10.5,EndEffectorVerts(:,2)+0, EndEffectorVerts(:,3)+13 ,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
-%initialise game board 
+%initialise game board
 %center position (20,0) Top right (25,-5) bottom left (15,5)
 [f,v,data] = read_ply('board.ply','tri');
 boardVertexCount = size(v,1);
@@ -40,13 +40,13 @@ vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 board_h = trisurf(f,boardVerts(:,1)+20,boardVerts(:,2), boardVerts(:,3),'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
 %initialise enclosure
-[f,v,data] = read_ply('enclosure.ply','tri');
-enclosureVertexCount = size(v,1);
-midPointenclosure = sum(v)/enclosureVertexCount;
-enclosureVerts = v - repmat(midPointenclosure,enclosureVertexCount,1);
-vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
-enclosure_h = trisurf(f,enclosureVerts(:,1)+30,enclosureVerts(:,2), enclosureVerts(:,3)+20,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
-hold on;
+% [f,v,data] = read_ply('enclosure.ply','tri');
+% enclosureVertexCount = size(v,1);
+% midPointenclosure = sum(v)/enclosureVertexCount;
+% enclosureVerts = v - repmat(midPointenclosure,enclosureVertexCount,1);
+% vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+% enclosure_h = trisurf(f,enclosureVerts(:,1)+30,enclosureVerts(:,2), enclosureVerts(:,3)+20,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+% hold on;
 %initialise tokens player 1 tokens stored in stack at (20,+12)
 %stack top at height 5 width of 1
 [f,v,data] = read_ply('token.ply','tri');
@@ -61,7 +61,7 @@ tokenC_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+2,'F
 tokenD_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+3,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 tokenE_h = trisurf(f,tokenVerts(:,1)+20,tokenVerts(:,2)+12, tokenVerts(:,3)+4,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 
-%initialise tokens player 2 tokens stored in stack at (20,-12) 
+%initialise tokens player 2 tokens stored in stack at (20,-12)
 %stack top at height 5 width of 1
 [f,v,data] = read_ply('token2.ply','tri');
 token2VertexCount = size(v,1);
@@ -77,76 +77,106 @@ token2E_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+
 %program commands
 uARM.plot(qa);
 hold on;
+powerOn = 0;
+while powerOn <= 0;
+    powerOn = readDigitalPin(a,'D7');
+end
 % TURN 1
-%  goalXYZ = [20,12,5];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 0;%advance gamestate for black
-% goalXYZ = [15,5,1]; %move token here
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1; %null gamestate to stop carrying token
-%  goalXYZ = [20,-12,5];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 5;%advance gamestate for white
-%  goalXYZ = [20,0,1];
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
+goalXYZ = [20,12,5];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 0;%advance gamestate for black
+goalXYZ = [15,5,1]; %move token here
+moveTo(goalXYZ,eStop);
+gamestate = -1; %null gamestate to stop carrying token
+goalXYZ = [20,-12,5];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 5;%advance gamestate for white
+goalXYZ = [20,0,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
 %  %TURN 2
-%   goalXYZ = [20,12,4];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 1;%advance gamestate for black
-% goalXYZ = [25,-5,1];
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
-%  goalXYZ = [20,-12,4];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 6;%advance gamestate for white
-%  goalXYZ = [25,5,1];
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
+goalXYZ = [20,12,4];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 1;%advance gamestate for black
+goalXYZ = [25,-5,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
+goalXYZ = [20,-12,4];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 6;%advance gamestate for white
+goalXYZ = [25,5,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
 %  %TURN 3
-%    goalXYZ = [20,12,3];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 2;%advance gamestate for black
-% goalXYZ = [15,-5,1];
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
-%  goalXYZ = [20,-12,3];%stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 7; %advance gamestate for white
-%  goalXYZ = [20,-5,1];
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
-%  %TURN 4
-%     goalXYZ = [20,12,2]; %stack position height minus 1
-%  moveTo(goalXYZ,eStop);
-%  gamestate = 3; %advance gamestate for black
-% goalXYZ = [15,0,1];  
-%  moveTo(goalXYZ,eStop);
-%  gamestate = -1;%null gamestate to stop carrying token
+goalXYZ = [20,12,3];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 2;%advance gamestate for black
+goalXYZ = [15,-5,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
+goalXYZ = [20,-12,3];%stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 7; %advance gamestate for white
+goalXYZ = [20,-5,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
+%TURN 4
+goalXYZ = [20,12,2]; %stack position height minus 1
+moveTo(goalXYZ,eStop);
+gamestate = 3; %advance gamestate for black
+goalXYZ = [15,0,1];
+moveTo(goalXYZ,eStop);
+gamestate = -1;%null gamestate to stop carrying token
 
+goalXYZ = [10,0,5];
+moveTo(goalXYZ,eStop);
 %incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
 
 
 
     function iseStop(eStop)
         %tests for estop conditions
-         buttonEstop = readDigitalPin(a,'D4');
+        writeDigitalPin(a, 'D9', 1); %safety light
+        buttonEstop = readDigitalPin(a,'D5'); %e stop
         pause(1/100);           %allow time for pin to be read
-         if buttonEstop < 1 
-        eStop(1,1) = 1;
+        if buttonEstop <=0
+            eStop(1,1) = 1;
+        end
+        reedEstop = readDigitalPin(a,'D4'); %reed switch
+        pause(1/100);           %allow time for pin to be read
+        if reedEstop >0
+            eStop(1,3) = 1;
+        end
+        microEstop = readDigitalPin(a,'D6'); %e stop
+        pause(1/100);           %allow time for pin to be read
+        if microEstop >0
+            eStop(1,2) = 1;
         end
         stopped = any(eStop);
         while stopped ~= 0
             display('stopped')
             eStop
             pause(2.0);
-             buttonEstop = readDigitalPin(a,'D4');
-             pause(1/100);           %allow time for pin to be read 10ms
-             if buttonEstop > 0      %check for button to be manually reset
-                 eStop(1,1) = 0;
+            buttonEstop = readDigitalPin(a,'D5');
+            pause(1/100);           %allow time for pin to be read
+            if buttonEstop > 0    %check for button to be manually reset
+                eStop(1,1) = 0;
                 stopped = any(eStop);
-             end
+            end
+            reedEstop = readDigitalPin(a,'D4');
+            pause(1/100);           %allow time for pin to be read
+            if reedEstop <= 0    %check for button to be manually reset
+                eStop(1,3) = 0;
+                stopped = any(eStop);
+            end
+            microEstop = readDigitalPin(a,'D6');
+            pause(1/100);           %allow time for pin to be read
+            if microEstop<=0    %check for button to be manually reset
+                eStop(1,2) = 0;
+                stopped = any(eStop);
+            end
         end
+        writeDigitalPin(a, 'D9', 0);
     end
 
     function incrementQ(QGUI)
@@ -219,7 +249,7 @@ hold on;
                 updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
                 EndEffector_h.Vertices = updatedPoints(:,1:3);
                 uARM.plot(qa);
-            end
+        end
     end
     function incrementMove(XYZ)  %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
         increment = 2;
@@ -367,9 +397,9 @@ hold on;
         arg = rotz(angleTotal);
         %now goalXYZ offset to account for L4 and end effector
         %if angleTotal >=1
-            offsetEE = [(goalXYZ(1,1)-(3.5*cos(degtorad(angleTotal)))),(goalXYZ(1,2)-(3.5*sin(degtorad(angleTotal)))),(goalXYZ(1,3)+6)]
+        offsetEE = [(goalXYZ(1,1)-(3.5*cos(degtorad(angleTotal)))),(goalXYZ(1,2)-(3.5*sin(degtorad(angleTotal)))),(goalXYZ(1,3)+6)]
         %else
-         %   offsetEE = [(goalXYZ(1,1)-(3.5*cos(abs(angleTotal)))),(goalXYZ(1,2)+(3.5*sin(abs(angleTotal)))), (goalXYZ(1,3)+6)];
+        %   offsetEE = [(goalXYZ(1,1)-(3.5*cos(abs(angleTotal)))),(goalXYZ(1,2)+(3.5*sin(abs(angleTotal)))), (goalXYZ(1,3)+6)];
         %end
         %change goalXYZ to offsetEE when end effector is modeled in
         eEPoint = [arg(1,1),arg(1,2),arg(1,3),offsetEE(1,1); arg(2,1),arg(2,2),arg(2,3),offsetEE(1,2); arg(3,1),arg(3,2),arg(3,3),offsetEE(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);]
@@ -556,4 +586,4 @@ hold on;
         end
         iseStop(eStop);
     end
-    end
+end
