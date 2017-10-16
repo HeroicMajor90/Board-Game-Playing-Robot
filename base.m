@@ -11,17 +11,17 @@ L3 = Link('d',0,'a',16,'alpha',0,'offset',+pi/1.5,'qlim', [-pi/3,(2/3*pi)]);
 L4 = Link('d',0,'a',0,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi]);
 
 uARM = SerialLink([L1 L2 L3 L4], 'name', 'uARM')
-uARM.base
-
 uARM.base = transl(0, 0, 0) ;%Base position uARM
 q1 =0; q2 =0; q3 =0; q4 =0; %initialise q states
 qa = [q1,q2,q3,q4];
 
 %initialise arduino
-a = arduino();
+%a = arduino();
 gamestate = -1;
 progress = 0; %number of pieces that have been placed
 collisionPoint = [-50,-50,-50;];
+
+
 %initialise end effector
 [f,v,data] = read_ply('EndEffector.ply','tri');
 EndEffectorVertexCount = size(v,1);
@@ -40,13 +40,13 @@ vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
 board_h = trisurf(f,boardVerts(:,1)+20,boardVerts(:,2), boardVerts(:,3),'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 hold on;
 %initialise enclosure
-% [f,v,data] = read_ply('enclosure.ply','tri');
-% enclosureVertexCount = size(v,1);
-% midPointenclosure = sum(v)/enclosureVertexCount;
-% enclosureVerts = v - repmat(midPointenclosure,enclosureVertexCount,1);
-% vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
-% enclosure_h = trisurf(f,enclosureVerts(:,1)+30,enclosureVerts(:,2), enclosureVerts(:,3)+20,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
-% hold on;
+[f,v,data] = read_ply('enclosure.ply','tri');
+enclosureVertexCount = size(v,1);
+midPointenclosure = sum(v)/enclosureVertexCount;
+enclosureVerts = v - repmat(midPointenclosure,enclosureVertexCount,1);
+vertexColours = [data.vertex.red, data.vertex.green, data.vertex.blue] / 255;
+enclosure_h = trisurf(f,enclosureVerts(:,1)+30,enclosureVerts(:,2), enclosureVerts(:,3)+20,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+hold on;
 %initialise tokens player 1 tokens stored in stack at (20,+12)
 %stack top at height 5 width of 1
 [f,v,data] = read_ply('token.ply','tri');
@@ -74,67 +74,78 @@ token2B_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+
 token2C_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+2,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 token2D_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+3,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
 token2E_h = trisurf(f,token2Verts(:,1)+20,token2Verts(:,2)-12, token2Verts(:,3)+4,'FaceVertexCData',vertexColours,'EdgeColor','interp','EdgeLighting','flat');
+
+%list of available commands to call:
+%-moveto(XYZ) 
+%moves to a position given coords checks for collisions and does isestop()
+%incrementMove(case) case 0+X 1-X 2+Y 3-Y 4+Z 5-Z 
+%calculates position then runs updated position through moveto()
+%incrementQ(case,joint number) case 0+ 1- 
+%calculates current position then adds joint angle, no collision detection.
+%iseStop()
+
 %program commands
 uARM.plot(qa);
 hold on;
+
 powerOn = 0;
 while powerOn <= 0;
-    powerOn = readDigitalPin(a,'D7');
+    %powerOn = readDigitalPin(a,'D7');
 end
 % TURN 1
-goalXYZ = [20,12,5];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 0;%advance gamestate for black
-goalXYZ = [15,5,1]; %move token here
-moveTo(goalXYZ,eStop);
-gamestate = -1; %null gamestate to stop carrying token
-goalXYZ = [20,-12,5];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 5;%advance gamestate for white
-goalXYZ = [20,0,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-%  %TURN 2
-goalXYZ = [20,12,4];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 1;%advance gamestate for black
-goalXYZ = [25,-5,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-goalXYZ = [20,-12,4];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 6;%advance gamestate for white
-goalXYZ = [25,5,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-%  %TURN 3
-goalXYZ = [20,12,3];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 2;%advance gamestate for black
-goalXYZ = [15,-5,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-goalXYZ = [20,-12,3];%stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 7; %advance gamestate for white
-goalXYZ = [20,-5,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-%TURN 4
-goalXYZ = [20,12,2]; %stack position height minus 1
-moveTo(goalXYZ,eStop);
-gamestate = 3; %advance gamestate for black
-goalXYZ = [15,0,1];
-moveTo(goalXYZ,eStop);
-gamestate = -1;%null gamestate to stop carrying token
-
-goalXYZ = [10,0,5];
-moveTo(goalXYZ,eStop);
-%incrementMove(4);       %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
-
+% goalXYZ = [20,12,5];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 0;%advance gamestate for black
+% goalXYZ = [15,5,1]; %move token here
+% moveTo(goalXYZ);
+% gamestate = -1; %null gamestate to stop carrying token
+% goalXYZ = [20,-12,5];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 5;%advance gamestate for white
+% goalXYZ = [20,0,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% %  %TURN 2
+% goalXYZ = [20,12,4];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 1;%advance gamestate for black
+% goalXYZ = [25,-5,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% goalXYZ = [20,-12,4];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 6;%advance gamestate for white
+% goalXYZ = [25,5,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% %  %TURN 3
+% goalXYZ = [20,12,3];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 2;%advance gamestate for black
+% goalXYZ = [15,-5,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% goalXYZ = [20,-12,3];%stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 7; %advance gamestate for white
+% goalXYZ = [20,-5,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% %TURN 4
+% goalXYZ = [20,12,2]; %stack position height minus 1
+% moveTo(goalXYZ);
+% gamestate = 3; %advance gamestate for black
+% goalXYZ = [15,0,1];
+% moveTo(goalXYZ);
+% gamestate = -1;%null gamestate to stop carrying token
+% 
+% goalXYZ = [10,0,5];
+% moveTo(goalXYZ);
 
 
-    function iseStop(eStop)
+
+
+    function iseStop()
         %tests for estop conditions
         writeDigitalPin(a, 'D9', 1); %safety light
         buttonEstop = readDigitalPin(a,'D5'); %e stop
@@ -179,13 +190,13 @@ moveTo(goalXYZ,eStop);
         writeDigitalPin(a, 'D9', 0);
     end
 
-    function incrementQ(QGUI)
+    function incrementQ(QGUI,joint)
         qa = uARM.getpos(); %get current positions of arm
         incrementQ = degtorad(4);
-        switch(QGUI)%case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
-            case 0 %x+
+        switch(QGUI)%case 0+ 1- 
+            case 0 %+
                 qCurrent = qa;
-                qa(1,1) = qa(1,1)+incrementQ; %correctly gets required joint angles
+                qa(1,joint) = qa(1,joint)+incrementQ; %correctly gets required joint angles
                 %plot end effector with arm
                 pos = uARM.fkine(qa);
                 
@@ -194,63 +205,20 @@ moveTo(goalXYZ,eStop);
                 updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
                 EndEffector_h.Vertices = updatedPoints(:,1:3);
                 uARM.plot(qa);
-            case 1 %x-
+            case 1 %-
                 qCurrent = qa;
-                qa(1,1) = qa(1,1)-incrementQ; %correctly gets required joint angles
+                qa(1,joint) = qa(1,joint)-incrementQ; %correctly gets required joint angles
                 %plot end effector with arm
                 pos = uARM.fkine(qa);
                 
                 eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
-                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
-                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
-                EndEffector_h.Vertices = updatedPoints(:,1:3);
-                uARM.plot(qa);
-            case 2 %y+
-                qCurrent = qa;
-                qa(1,2) = qa(1,2)+incrementQ; %correctly gets required joint angles
-                %plot end effector with arm
-                pos = uARM.fkine(qa);
-                
-                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
-                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
-                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
-                EndEffector_h.Vertices = updatedPoints(:,1:3);
-                uARM.plot(qa);
-            case 3  %y-
-                qCurrent = qa;
-                qa(1,2) = qa(1,2)-incrementQ; %correctly gets required joint angles
-                %plot end effector with arm
-                pos = uARM.fkine(qa);
-                
-                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
-                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
-                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
-                EndEffector_h.Vertices = updatedPoints(:,1:3);
-                uARM.plot(qa);
-            case 4  %z+
-                qCurrent = qa;
-                qa(1,3) = qa(1,3)+incrementQ; %correctly gets required joint angles
-                %plot end effector with arm
-                pos = uARM.fkine(qa);
-                
-                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
-                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
-                updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
-                EndEffector_h.Vertices = updatedPoints(:,1:3);
-                uARM.plot(qa);
-            case 5  %z-
-                qCurrent = qa;
-                qa(1,3) = qa(1,3)-incrementQ; %correctly gets required joint angles
-                %plot end effector with arm
-                pos = uARM.fkine(qa);
-                
-                eeAngle = rotz(qCurrent(1,1));  %get angle current and rotation matrix to add to below
-                EndEffectorPose =[eeAngle(1,1),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
+                EndEffectorPose =[eeAngle(1,joint),eeAngle(1,2),eeAngle(1,3),pos(1,4);eeAngle(2,1),eeAngle(2,2),eeAngle(2,3),pos(2,4);eeAngle(3,1),eeAngle(3,2),eeAngle(3,3),pos(3,4);0,0,0,1;];
                 updatedPoints =[EndEffectorPose * [EndEffectorVerts,ones(EndEffectorVertexCount,1)]']';
                 EndEffector_h.Vertices = updatedPoints(:,1:3);
                 uARM.plot(qa);
         end
     end
+
     function incrementMove(XYZ)  %case 0+X 1-X 2+Y 3-Y 4+Z 5-Z
         increment = 2;
         switch(XYZ)
@@ -269,7 +237,7 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,1) = offsetEE(1,1)+increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
             case 1 %move -1 increment in X
                 %get current end effector position
                 qa = uARM.getpos();
@@ -285,7 +253,7 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,1) = offsetEE(1,1)-increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
             case 2 %move +1 increment in Y
                 %get current end effector position
                 qa = uARM.getpos();
@@ -301,7 +269,7 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,2) = offsetEE(1,2)+increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
             case 3 %move -1 increment in Y
                 %get current end effector position
                 qa = uARM.getpos();
@@ -317,7 +285,7 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,2) = offsetEE(1,2)-increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
             case 4 %move +1 increment in Z
                 %get current end effector position
                 qa = uARM.getpos();
@@ -333,7 +301,7 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,3) = offsetEE(1,3)+increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
             case 5 %move -1 increment in Z
                 %get current end effector position
                 qa = uARM.getpos();
@@ -349,24 +317,27 @@ moveTo(goalXYZ,eStop);
                 %offsetEE is now the actual end of the robot
                 offsetEE(1,3) = offsetEE(1,3)-increment; %add the increment
                 goalXYZ = [offsetEE(1,1),offsetEE(1,2),offsetEE(1,3);];
-                moveTo(goalXYZ,eStop);
+                moveTo(goalXYZ);
         end
     end
 
-    function moveTo(goalXYZ,eStop)
-        iseStop(eStop); %check for safety
+    function moveTo(goalXYZ)
+        iseStop(); %check for safety
         %create bounding boxes
         %create square radius size R
         Z1= 4;Z2 = 3;Z3 = 17;Z4 = 18;Z5 = 8;
         R= 4;
         Zs= [Z1, Z2, Z3, Z4, Z5;];
-        
+        boxesA = recPris(R,Zs);
+        %R= R/2;
         boxesB = recPris(R,Zs);
         %so to create a rectanglular prism we need 8 points, 4 at height 0 and 4 at
         %height Z
+        boxesA = boxUpdate(boxesA);
         boxesB = boxUpdate(boxesB);
         %check bounding boxes
-        isCollision(boxesB,collisionPoint);
+        isCollision(boxesA,collisionPoint,1);
+        isCollision(boxesB,collisionPoint,2);
         
         steps = 15;
         %get angles
@@ -414,8 +385,9 @@ moveTo(goalXYZ,eStop);
             qCurrent= uARM.getpos();
             %create and move bounding boxes
             boxUpdate(boxesB);
-            isCollision(boxesB,collisionPoint);
-            iseStop(eStop);
+            isCollision(boxesB,collisionPoint,1);
+            isCollision(boxesB,collisionPoint,2);
+            iseStop();
             %plot end effector with arm
             pos = uARM.fkine(qMatrix((16-steps),:));
             epos = eMatrix(:,:,16-steps);
@@ -471,9 +443,9 @@ moveTo(goalXYZ,eStop);
         hold on;
     end
 
-    function boxesB = recPris(R,Zs)
+    function boxesB = recPris(R, Zs)
         %create square "radius" size R
-        R= 4;
+        R = 4;
         square1 = [-R, -R; -R, +R; +R, +R; +R, -R;]; % 4 corners
         
         rectangularPrism1 = [square1(1,1), square1(1,2), 0;     square1(2,1), square1(2,2),0;   square1(3,1), square1(3,2),0;   square1(4,1), square1(4,2),0;   square1(1,1), square1(1,2), Zs(1,1);     square1(2,1), square1(2,2),Zs(1,1);    square1(3,1), square1(3,2),Zs(1,1);     square1(4,1), square1(4,2),Zs(1,1);];
@@ -517,7 +489,7 @@ moveTo(goalXYZ,eStop);
         boxesB = [aBox,bBox,cBox,dBox,eBox,];
     end
 
-    function isCollision(boxesB,collisionPoint)
+    function isCollision(boxes,collisionPoint,bound)
         
         
         plot3(collisionPoint(1,1),collisionPoint(1,2),collisionPoint(1,3),'go'); hold on;
@@ -525,65 +497,85 @@ moveTo(goalXYZ,eStop);
         %test each axis against collisions with inpolygon()
         %[in] = inpolygon(xq,yq,xv,yv) v = bounding box q = point query
         %xvAX is the points of concern with the xy axis check for box A
-        xvAX = boxesB(:,1);
-        yvAX = boxesB(:,2);
+        xvAX = boxes(:,1);
+        yvAX = boxes(:,2);
         %xvAY is the 2nd axis points for check yz axis
-        xvAY = boxesB(:,2);
-        yvAY = boxesB(:,3);
+        xvAY = boxes(:,2);
+        yvAY = boxes(:,3);
         %xvAZ is the final axis points for check xz axis
-        xvAZ = boxesB(:,1);
-        yvAZ = boxesB(:,3);
+        xvAZ = boxes(:,1);
+        yvAZ = boxes(:,3);
         %b box points
-        xvBX = boxesB(:,4);
-        yvBX = boxesB(:,5);
-        xvBY = boxesB(:,5);
-        yvBY = boxesB(:,6);
-        xvBZ = boxesB(:,4);
-        yvBZ = boxesB(:,6);
+        xvBX = boxes(:,4);
+        yvBX = boxes(:,5);
+        xvBY = boxes(:,5);
+        yvBY = boxes(:,6);
+        xvBZ = boxes(:,4);
+        yvBZ = boxes(:,6);
         %c box points
-        xvCX = boxesB(:,7);
-        yvCX = boxesB(:,8);
-        xvCY = boxesB(:,8);
-        yvCY = boxesB(:,9);
-        xvCZ = boxesB(:,7);
-        yvCZ = boxesB(:,9);
+        xvCX = boxes(:,7);
+        yvCX = boxes(:,8);
+        xvCY = boxes(:,8);
+        yvCY = boxes(:,9);
+        xvCZ = boxes(:,7);
+        yvCZ = boxes(:,9);
         %d box points
-        xvDX = boxesB(:,10);
-        yvDX = boxesB(:,11);
-        xvDY = boxesB(:,11);
-        yvDY = boxesB(:,12);
-        xvDZ = boxesB(:,10);
-        yvDZ = boxesB(:,12);
+        xvDX = boxes(:,10);
+        yvDX = boxes(:,11);
+        xvDY = boxes(:,11);
+        yvDY = boxes(:,12);
+        xvDZ = boxes(:,10);
+        yvDZ = boxes(:,12);
         %e box points
-        xvEX = boxesB(:,13);
-        yvEX = boxesB(:,14);
-        xvEY = boxesB(:,14);
-        yvEY = boxesB(:,15);
-        xvEZ = boxesB(:,13);
-        yvEZ = boxesB(:,15);
+        xvEX = boxes(:,13);
+        yvEX = boxes(:,14);
+        xvEY = boxes(:,14);
+        yvEY = boxes(:,15);
+        xvEZ = boxes(:,13);
+        yvEZ = boxes(:,15);
         %checks if the point overlaps the 2D polygon created by the
         %bounding box. If the point overlaps in all three planes then there
         %is collision.
         %A box collision test
         if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvAX,yvAX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvAY,yvAY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvAZ,yvAZ));
-            eStop(1,8) = 1;
+            %if bound == 2;
+                eStop(1,8) = 1;
+            %else
+                %change velocity profile of arm to reduce potential collision
+            %end
         end
         %B box collision test
         if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvBX,yvBX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvBY,yvBY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvBZ,yvBZ));
-            eStop(1,8) = 1;
+            %if bound == 2
+                eStop(1,8) = 1;
+            %else
+                %change vel
+            %end
         end
         %C box collision test
         if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvCX,yvCX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvCY,yvCY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvCZ,yvCZ));
-            eStop(1,8) = 1;
+            %if bound == 2
+                eStop(1,8) = 1;
+            %else
+                %change vel
+            %end
         end
         %D box collision test
         if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvDX,yvDX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvDY,yvDY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvDZ,yvDZ));
-            eStop(1,8) = 1;
+            %if bound == 2
+                eStop(1,8) = 1;
+            %else
+                %change vel
+            %end
         end
         %E box collision test
         if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvEX,yvEX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvEY,yvEY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvEZ,yvEZ));
-            eStop(1,8) = 1;
+            %if bounds == 2;
+                eStop(1,8) = 1;
+            %else
+                %change vel
+           % end
         end
-        iseStop(eStop);
+        iseStop();
     end
 end
