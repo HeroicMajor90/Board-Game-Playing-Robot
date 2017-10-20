@@ -1,8 +1,9 @@
 classdef uArmRobot < SerialLink
-    %UNTITLED2 Summary of this class goes here
-    %   Detailed explanation goes here
+    %Class that simulates the uArm robot and all its movements while
+    %playing Tic Tac Toe
     
     properties (Constant)
+        % uArm joints constants
         L1 = Link('d',0,'a',2,'alpha',-pi/2,'offset',0,'qlim', [-pi/2,pi/2]);
         L2 = Link('d',0,'a',15,'alpha',0,'offset',-pi/1.5,'qlim', [(-1.5/3*pi),(1.5/3*pi)]);
         L3 = Link('d',0,'a',16,'alpha',0,'offset',+pi/1.5,'qlim', [-pi/3,(2/3*pi)]);
@@ -12,17 +13,19 @@ classdef uArmRobot < SerialLink
     end
     
     properties
-        eStop = zeros(1, 8);
+        eStop = zeros(1, 8); % Variable to handle the different stops
         uArm = SerialLink([uArmRobot.L1 uArmRobot.L2 uArmRobot.L3 uArmRobot.L4], ...
-                           'name', 'uArm');
-        arduinoBoard = arduino();
-        collisionPoint = [-50,-50,-50];   
+                           'name', 'uArm'); % uArm robot variable
+        arduinoBoard = arduino(); % Variable to handle the arduino stop buttons
+        collisionPoint = [-50,-50,-50];   % Where the point of collision is located
         
+        % End effector handling variables
         endEffectorVertexCount;
         endEffectorVerts;
         midPointEndEffector = [-4,0,7];
         endEffector_h;
         
+        % Variables to handle the 2 stacks of tokens
         tokenVertexCount;
         tokenVerts;
         tokenHandlers;
@@ -33,6 +36,7 @@ classdef uArmRobot < SerialLink
     end
     
     methods
+        % Constructor
         function self = uArmRobot()
             self = self.initEndEffector();
             self.initGameBoard();
@@ -41,6 +45,7 @@ classdef uArmRobot < SerialLink
             self.uArm.plot(self.QA);
         end
         
+        % This function initializes the end effector position and plots it
         function self = initEndEffector(self)
             [f, v, data] = read_ply('EndEffector.ply', 'tri');
             self.endEffectorVertexCount = size(v,1);
@@ -51,6 +56,7 @@ classdef uArmRobot < SerialLink
             hold on;
         end
         
+        % Plots the Tic Tac Toe board
         function initGameBoard(self)
             [f, v, data] = read_ply('board.ply', 'tri');
             boardVertexCount = size(v,1);
@@ -61,6 +67,7 @@ classdef uArmRobot < SerialLink
             hold on;
         end
         
+        % Plots the box enclosing the robot
         function initEnclosure(self)
             [f, v, data] = read_ply('enclosure.ply', 'tri');
             enclosureVertexCount = size(v, 1);
@@ -71,6 +78,7 @@ classdef uArmRobot < SerialLink
             hold on;
         end
         
+        % Plots both stacks of tockens
         function initTokens(self)
             [f, v, data] = read_ply('token.ply','tri');
             self.tokenVertexCount = size(v,1);
@@ -95,14 +103,17 @@ classdef uArmRobot < SerialLink
             hold on;
         end
         
+        % Returns the endEffector transform matrix
         function endEffector = getEndEffector(self, qValues)
             endEffector = self.uArm.fkine(qValues);
         end
         
+        % Returns the current joints positions
         function pos = getPos(self)
             pos = self.uArm.getpos();
         end
         
+        % Plots the new end effector position
         function eeAngle = plot(self, qValues)
             pos = self.uArm.fkine(qValues); 
             eeAngle = rotz(qValues(1,1));  %get angle current and rotation matrix to add to below
@@ -114,8 +125,11 @@ classdef uArmRobot < SerialLink
             hold on;
         end
         
+        % Checks the different security triggers and stops the robot
         function iseStop(self)
             
+            % Returns true if any of the stop measurements have been
+            % triggered
             function emergency = readEmergencyStops(self)
                 releaseEStop = readDigitalPin(self.arduinoBoard, 'D7');
                 if releaseEStop
@@ -159,6 +173,7 @@ classdef uArmRobot < SerialLink
             writeDigitalPin(self.arduinoBoard, 'D9', 0);
         end
         
+        % Function that plots the robot making a move
         function makeMove(self, row, col, player, board)
             goalXYZ = [20 12 4-sum(board.board(:) == player)];
             
@@ -172,8 +187,11 @@ classdef uArmRobot < SerialLink
             self.moveTo(goalXYZ, player, board);
         end
         
+        % Function that computes and plots the movement of the robot from
+        % its current position to goalXYZ. 
         function moveTo(self, goalXYZ, player, board)
             
+            % Checks for the goal to be within the range of the robot
             function isInRange(reach)
                 if reach > 30
                     disp('Out of range Far')
@@ -193,18 +211,20 @@ classdef uArmRobot < SerialLink
             end
             
             self.iseStop(); %check for safety
+            
             %create bounding boxes
             %create square radius size R
             Z1= 4;Z2 = 3;Z3 = 17;Z4 = 18;Z5 = 8;
             R= 8;
             Zs= [Z1, Z2, Z3, Z4, Z5;];
             boxesA = self.recPris(R,Zs);
-            %R= R/2;
             boxesB = self.recPris(R,Zs);
+            
             %so to create a rectanglular prism we need 8 points, 4 at height 0 and 4 at
             %height Z
             boxesA = self.boxUpdate(boxesA);
             boxesB = self.boxUpdate(boxesB);
+            
             %check bounding boxes
             self = self.isCollision(boxesA, self.collisionPoint, 1);    
             self = self.isCollision(boxesB, self.collisionPoint, 2);
@@ -214,6 +234,7 @@ classdef uArmRobot < SerialLink
             qa = self.uArm.getpos();
             endEffector = self.uArm.fkine(qa);
             qNow = self.uArm.getpos(); %current joint angles
+            
             %required L1 rotation to get end effector pose
             angleGoal = radtodeg(atan((goalXYZ(1,2)/goalXYZ(1,1))))
             angleCurrent =radtodeg(atan((endEffector(2,4)/endEffector(1,4))))
@@ -226,12 +247,10 @@ classdef uArmRobot < SerialLink
 
             %end effector wanted orientation (L3 orientation)
             arg = rotz(angleTotal);
+            
             %now goalXYZ offset to account for L4 and end effector
-            %if angleTotal >=1
             offsetEE = [(goalXYZ(1,1)-(3.5*cos(degtorad(angleTotal)))),(goalXYZ(1,2)-(3.5*sin(degtorad(angleTotal)))),(goalXYZ(1,3)+6)]
-            %else
-            %   offsetEE = [(goalXYZ(1,1)-(3.5*cos(abs(angleTotal)))),(goalXYZ(1,2)+(3.5*sin(abs(angleTotal)))), (goalXYZ(1,3)+6)];
-            %end
+
             %change goalXYZ to offsetEE when end effector is modeled in
             eEPoint = [arg(1,1),arg(1,2),arg(1,3),offsetEE(1,1); arg(2,1),arg(2,2),arg(2,3),offsetEE(1,2); arg(3,1),arg(3,2),arg(3,3),offsetEE(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);]
             goalPoint = [arg(1,1),arg(1,2),arg(1,3),goalXYZ(1,1); arg(2,1),arg(2,2),arg(2,3),goalXYZ(1,2); arg(3,1),arg(3,2),arg(3,3),goalXYZ(1,3);endEffector(4,1),endEffector(4,2),endEffector(4,3),endEffector(4,4);]
@@ -241,6 +260,7 @@ classdef uArmRobot < SerialLink
             qMatrix = jtraj(qNow,eValues,steps);
             eMatrix = ctraj(eNow,self.uArm.fkine(qValues),steps);
             
+            % Plot every step while still checking for security
             while steps >= 1
 
                 qCurrent= self.uArm.getpos();
@@ -274,6 +294,7 @@ classdef uArmRobot < SerialLink
             
         end
         
+        % Function to create the rectangular prism for colission detection
         function boxesB = recPris(self, R, Zs)
             %create square "radius" size R
             square1 = [-R, -R; -R, +R; +R, +R; +R, -R;]; % 4 corners
@@ -287,6 +308,7 @@ classdef uArmRobot < SerialLink
             boxesB = [rectangularPrism1, rectangularPrism2, rectangularPrism3, rectangularPrism4, rectangularPrism5;];
         end
         
+        % Update the box position accordingly to the robot current position
         function boxesB = boxUpdate(self, boxesB)
             qCurrent= self.uArm.getpos();
             combinedMatrix = boxesB;
@@ -318,15 +340,14 @@ classdef uArmRobot < SerialLink
 
             boxesB = [aBox,bBox,cBox,dBox,eBox,];
         end
-
+        
+        % Check for collisions within the colissions boxes.
         function self = isCollision(self, boxes, collisionPoint, bound)
 
 
             plot3(collisionPoint(1,1), collisionPoint(1,2), collisionPoint(1,3), 'go'); hold on;
-            %arbitrary values for now
+            
             %test each axis against collisions with inpolygon()
-            %[in] = inpolygon(xq,yq,xv,yv) v = bounding box q = point query
-            %xvAX is the points of concern with the xy axis check for box A
             xvAX = boxes(:,1);
             yvAX = boxes(:,2);
             %xvAY is the 2nd axis points for check yz axis
@@ -363,6 +384,7 @@ classdef uArmRobot < SerialLink
             yvEY = boxes(:,15);
             xvEZ = boxes(:,13);
             yvEZ = boxes(:,15);
+            
             %checks if the point overlaps the 2D polygon created by the
             %bounding box. If the point overlaps in all three planes then there
             %is collision.
@@ -374,6 +396,7 @@ classdef uArmRobot < SerialLink
                     %change velocity profile of arm to reduce potential collision
                 %end
             end
+            
             %B box collision test
             if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvBX,yvBX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvBY,yvBY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvBZ,yvBZ));
                 %if bound == 2
@@ -382,29 +405,20 @@ classdef uArmRobot < SerialLink
                     %change vel
                 %end
             end
+            
             %C box collision test
             if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvCX,yvCX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvCY,yvCY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvCZ,yvCZ));
-                %if bound == 2
-                    self.eStop(1,8) = 1;
-                %else
-                    %change vel
-                %end
+                self.eStop(1,8) = 1;
             end
+            
             %D box collision test
             if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvDX,yvDX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvDY,yvDY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvDZ,yvDZ));
-                %if bound == 2
-                    self.eStop(1,8) = 1;
-                %else
-                    %change vel
-                %end
+                self.eStop(1,8) = 1;
             end
+            
             %E box collision test
             if (inpolygon(collisionPoint(1,1),collisionPoint(1,2),xvEX,yvEX)&&inpolygon(collisionPoint(1,2),collisionPoint(1,3),xvEY,yvEY)&&inpolygon(collisionPoint(1,1),collisionPoint(1,3),xvEZ,yvEZ));
-                if bounds == 2;
-                    self.eStop(1,8) = 1;
-                else
-                    %change vel
-                end
+                self.eStop(1,8) = 1;
             end
             self.iseStop();
         end
